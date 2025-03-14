@@ -1,44 +1,36 @@
 package server
 
 import (
-	"context"
 	"log"
+	"log/slog"
 	"net/http"
-
-	userpb "github.com/c4erries/raptor-proto/userpb"
-
-	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
-	"google.golang.org/grpc"
 )
 
-type Server interface {
-	Start(c *Config)
+type Server struct {
+	log *slog.Logger
+}
+
+func New(log *slog.Logger) *Server {
+	return &Server{log: log}
 }
 
 // Запуск сервера. Регистрация сервисов и подъём http сервера
-func Start(config *Config) {
+func (s *Server) Start(config *Config) {
 	// Создаем контекст
-	ctx := context.Background()
+	//ctx := context.Background()
 
 	// Создаем мультиплексор
-	mux := runtime.NewServeMux()
-
-	// Опции для подключения к gRPC-сервису
-	opts := []grpc.DialOption{grpc.WithInsecure()}
-
-	// Регистрируем UserService
-	if err := userpb.RegisterUserServiceHandlerFromEndpoint(ctx, mux, config.UserServiceUrl, opts); err != nil {
-		log.Fatalf("failed to register gateway: %v", err)
-	}
+	mux := http.NewServeMux()
 
 	// Запускаем HTTP-сервер
-	log.Println("API Gateway is running on port 8080")
+	s.log.Debug("API Gateway is running on port 8080")
 	if err := http.ListenAndServe(config.Bindaddr,
 		errorHandlingMiddleware(
 			asyncmiddleware(
 				logmiddleware(mux)))); err != nil {
-		log.Fatalf("failed to serve: %v", err)
+		s.log.Error("failed to serve:", err)
 	}
+
 }
 
 func asyncmiddleware(next http.Handler) http.Handler {
@@ -78,4 +70,8 @@ func errorHandlingMiddleware(next http.Handler) http.Handler {
 
 		next.ServeHTTP(w, r)
 	})
+}
+
+func (s *Server) Stop() {
+
 }
