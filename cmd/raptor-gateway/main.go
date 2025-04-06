@@ -1,13 +1,14 @@
 package main
 
 import (
+	"fmt"
 	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
 
 	"github.com/c4erries/raptor-gateway/internal/app"
-	"github.com/c4erries/raptor-gateway/internal/app/server"
+	"github.com/c4erries/raptor-gateway/internal/config"
 )
 
 const (
@@ -17,11 +18,14 @@ const (
 )
 
 func main() {
-	log := setupLogger("local")
+	cfg := config.MustLoad()
+	log := setupLogger(cfg.Env)
 
-	config := server.NewConfig()
+	fmt.Println(cfg)
+
 	app := app.New(log)
-	go app.Server.Start(config)
+	go app.Server.Start(cfg)
+	//graceful shutdown
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGTERM, syscall.SIGINT)
 

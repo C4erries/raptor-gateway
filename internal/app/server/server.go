@@ -4,6 +4,8 @@ import (
 	"log"
 	"log/slog"
 	"net/http"
+
+	"github.com/c4erries/raptor-gateway/internal/config"
 )
 
 type Server struct {
@@ -15,7 +17,7 @@ func New(log *slog.Logger) *Server {
 }
 
 // Запуск сервера. Регистрация сервисов и подъём http сервера
-func (s *Server) Start(config *Config) {
+func (s *Server) Start(config *config.Config) {
 	// Создаем контекст
 	//ctx := context.Background()
 
@@ -23,12 +25,10 @@ func (s *Server) Start(config *Config) {
 	mux := http.NewServeMux()
 
 	// Запускаем HTTP-сервер
-	s.log.Debug("API Gateway is running on port 8080")
-	if err := http.ListenAndServe(config.Bindaddr,
-		errorHandlingMiddleware(
-			asyncmiddleware(
-				logmiddleware(mux)))); err != nil {
-		s.log.Error("failed to serve:", err)
+	s.log.Debug("API Gateway is running on" + config.HTTPServer.Addr)
+	if err := http.ListenAndServe(config.HTTPServer.Addr,
+		s.errorHandlingMiddleware(s.logmiddleware(mux))); err != nil {
+		s.log.Error("failed to serve:", slog.Any("error", err))
 	}
 
 }
@@ -52,14 +52,14 @@ func asyncmiddleware(next http.Handler) http.Handler {
 	})
 }
 
-func logmiddleware(next http.Handler) http.Handler {
+func (s *Server) logmiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		log.Println(r.RequestURI, r.Method)
+		s.log.Debug("Запрос на %v с методом %v", r.RequestURI, r.Method)
 		next.ServeHTTP(w, r)
 	})
 }
 
-func errorHandlingMiddleware(next http.Handler) http.Handler {
+func (s *Server) errorHandlingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if err := recover(); err != nil {

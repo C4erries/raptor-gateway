@@ -2,7 +2,7 @@
 build:
 		go build -v ./cmd/raptor-gateway
 run:
-		go run ./cmd/raptor-gateway
+	    go run ./cmd/raptor-gateway -config_path=./config/local.yaml
 start: build run
 		
 		
